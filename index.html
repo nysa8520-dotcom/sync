@@ -7,56 +7,80 @@
 
 <title>Sync It</title>
 
-<link rel="manifest" href="manifest.json">
-
-<!-- Bubble Font -->
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
 
 body{
-font-family: 'Baloo 2', cursive;
+font-family:'Baloo 2', cursive;
 background:white;
+margin:0;
+padding:10px;
 text-align:center;
-padding:20px;
 }
 
 h1{
-font-size:42px;
+font-size:40px;
+margin-bottom:10px;
 }
 
-h2{
-font-size:28px;
+.container{
+max-width:500px;
+margin:auto;
+}
+
+input, button{
+font-family:'Baloo 2', cursive;
+font-size:16px;
+padding:10px;
+margin:5px;
+border-radius:10px;
 }
 
 button{
-padding:12px;
-font-size:18px;
-border-radius:15px;
-border:none;
 background:black;
 color:white;
-margin:5px;
-font-family: 'Baloo 2', cursive;
+border:none;
 }
 
-input{
-padding:12px;
-font-size:18px;
-border-radius:15px;
-width:70%;
-margin:5px;
-font-family: 'Baloo 2', cursive;
-border:1px solid #ccc;
+ul{
+padding:0;
 }
 
 li{
-background:#f2f2f2;
-margin:10px;
-padding:12px;
-border-radius:15px;
 list-style:none;
-font-size:18px;
+background:#f2f2f2;
+margin:5px;
+padding:10px;
+border-radius:10px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+}
+
+.calendar{
+display:grid;
+grid-template-columns:repeat(7,1fr);
+gap:5px;
+margin-top:10px;
+}
+
+.day{
+padding:10px;
+background:#f2f2f2;
+border-radius:10px;
+min-height:60px;
+font-size:14px;
+}
+
+.today{
+background:black;
+color:white;
+}
+
+.event{
+font-size:12px;
+margin-top:5px;
 }
 
 </style>
@@ -65,57 +89,41 @@ font-size:18px;
 
 <body>
 
+<div class="container">
+
 <h1>Sync It</h1>
 
-<button onclick="requestCalendarAccess()">Connect Calendar</button>
+<h2>Calendar</h2>
 
-<h2>Add Event</h2>
+<button onclick="prevMonth()">◀</button>
+<span id="monthLabel"></span>
+<button onclick="nextMonth()">▶</button>
 
-<input id="eventTitle" placeholder="Event name">
+<div class="calendar" id="calendar"></div>
 
-<input id="eventDate" type="datetime-local">
-
-<button onclick="saveEvent()">Save Event</button>
-
-<ul id="eventList"></ul>
+<input id="eventText" placeholder="Event text">
+<input id="eventDate" type="date">
+<button onclick="addEvent()">Add Event</button>
 
 
 <h2>To Do List</h2>
 
-<input id="taskInput" placeholder="Enter task">
+<input id="taskInput" placeholder="New task">
+<button onclick="addTask()">Add</button>
 
-<button onclick="addTask()">Add Task</button>
+<ul id="todoList"></ul>
 
-<ul id="taskList"></ul>
-
+</div>
 
 <script>
 
+// STORAGE
+
 let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-let events = JSON.parse(localStorage.getItem("events")) || [];
+let events = JSON.parse(localStorage.getItem("events")) || {};
 
-function render(){
 
-document.getElementById("taskList").innerHTML="";
-
-tasks.forEach(task=>{
-let li=document.createElement("li");
-li.textContent=task;
-document.getElementById("taskList").appendChild(li);
-});
-
-document.getElementById("eventList").innerHTML="";
-
-events.forEach(event=>{
-let li=document.createElement("li");
-li.textContent=event.title+" • "+new Date(event.date).toLocaleString();
-document.getElementById("eventList").appendChild(li);
-});
-
-}
-
-render();
-
+// TODO FUNCTIONS
 
 function addTask(){
 
@@ -123,42 +131,147 @@ let input=document.getElementById("taskInput");
 
 if(input.value==="") return;
 
-tasks.push(input.value);
+tasks.push({
+text:input.value,
+done:false
+});
 
 localStorage.setItem("tasks",JSON.stringify(tasks));
 
 input.value="";
 
-render();
+renderTasks();
 
 }
 
+function toggleTask(index){
 
-function saveEvent(){
+tasks[index].done=!tasks[index].done;
 
-let title=document.getElementById("eventTitle").value;
+localStorage.setItem("tasks",JSON.stringify(tasks));
+
+renderTasks();
+
+}
+
+function renderTasks(){
+
+let list=document.getElementById("todoList");
+
+list.innerHTML="";
+
+tasks.forEach((task,index)=>{
+
+let li=document.createElement("li");
+
+let left=document.createElement("span");
+
+left.innerHTML=`
+<input type="checkbox" ${task.done?"checked":""}
+onclick="toggleTask(${index})">
+${task.done?"<s>"+task.text+"</s>":task.text}
+`;
+
+li.appendChild(left);
+
+list.appendChild(li);
+
+});
+
+}
+
+renderTasks();
+
+
+// CALENDAR
+
+let current=new Date();
+
+function renderCalendar(){
+
+let year=current.getFullYear();
+let month=current.getMonth();
+
+let firstDay=new Date(year,month,1).getDay();
+let days=new Date(year,month+1,0).getDate();
+
+document.getElementById("monthLabel").innerText=
+current.toLocaleString("default",{month:"long",year:"numeric"});
+
+let cal=document.getElementById("calendar");
+
+cal.innerHTML="";
+
+for(let i=0;i<firstDay;i++){
+cal.innerHTML+="<div></div>";
+}
+
+for(let d=1;d<=days;d++){
+
+let dateKey=`${year}-${month+1}-${d}`;
+
+let div=document.createElement("div");
+
+div.className="day";
+
+let today=new Date();
+
+if(
+d===today.getDate() &&
+month===today.getMonth() &&
+year===today.getFullYear()
+){
+div.classList.add("today");
+}
+
+div.innerHTML=`${d}`;
+
+if(events[dateKey]){
+events[dateKey].forEach(ev=>{
+div.innerHTML+=`<div class="event">${ev}</div>`;
+});
+}
+
+cal.appendChild(div);
+
+}
+
+}
+
+renderCalendar();
+
+function prevMonth(){
+current.setMonth(current.getMonth()-1);
+renderCalendar();
+}
+
+function nextMonth(){
+current.setMonth(current.getMonth()+1);
+renderCalendar();
+}
+
+
+// EVENTS
+
+function addEvent(){
+
+let text=document.getElementById("eventText").value;
 let date=document.getElementById("eventDate").value;
 
-if(title==="" || date==="") return;
+if(!text||!date) return;
 
-events.push({title,date});
+let key=date;
+
+if(!events[key]){
+events[key]=[];
+}
+
+events[key].push(text);
 
 localStorage.setItem("events",JSON.stringify(events));
 
-render();
+renderCalendar();
 
-}
-
-
-function requestCalendarAccess(){
-
-alert("Sync It is now ready to help you plan your schedule 📅");
-
-}
-
-
-if ('serviceWorker' in navigator) {
-navigator.serviceWorker.register('service-worker.js');
 }
 
 </script>
